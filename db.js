@@ -12,6 +12,7 @@ function openDB() {
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
+    req.onblocked = () => reject(new Error('IndexedDB open blocked'));
   });
 }
 
@@ -26,8 +27,13 @@ export async function loadState() {
     });
   } catch (err) {
     console.warn('IndexedDB unavailable, using localStorage fallback', err);
-    const raw = localStorage.getItem('daily-os-state');
-    return raw ? JSON.parse(raw) : null;
+    try {
+      const raw = localStorage.getItem('daily-os-state');
+      return raw ? JSON.parse(raw) : null;
+    } catch (parseErr) {
+      console.warn('Local fallback state is invalid; starting clean', parseErr);
+      return null;
+    }
   }
 }
 
@@ -40,10 +46,16 @@ export async function saveState(state) {
       tx.objectStore(STORE).put(snapshot, STATE_KEY);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('IndexedDB transaction aborted'));
     });
   } catch (err) {
     console.warn('IndexedDB save failed, using localStorage fallback', err);
-    localStorage.setItem('daily-os-state', JSON.stringify(snapshot));
+    try {
+      localStorage.setItem('daily-os-state', JSON.stringify(snapshot));
+    } catch (storageErr) {
+      console.error('Could not save Daily OS state', storageErr);
+      throw storageErr;
+    }
   }
 }
 
@@ -55,8 +67,10 @@ export async function clearState() {
       tx.objectStore(STORE).delete(STATE_KEY);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('IndexedDB transaction aborted'));
     });
-  } finally {
-    localStorage.removeItem('daily-os-state');
+  } catch (err) {
+    console.warn('IndexedDB clear failed; clearing fallback storage only', err);
   }
+  try { localStorage.removeItem('daily-os-state'); } catch {}
 }
