@@ -44,6 +44,30 @@
     return overdue ? 0 : 1;
   }
 
+  function normalizeExisting(main, routine, note, water) {
+    const body = main.querySelector(':scope > [data-layout-section="body"]');
+    const morning = main.querySelector(':scope > [data-layout-section="skin-am"]');
+    const night = main.querySelector(':scope > [data-layout-section="skin-pm"]');
+    const misc = main.querySelector(':scope > [data-layout-section="other"]');
+    const tasks = main.querySelector(':scope > [data-layout-section="tasks"]');
+    if (!routine || !body || !morning || !night || !tasks) return false;
+
+    arranging = true;
+    try {
+      if (water) routine.after(water);
+      (water || routine).after(body);
+      body.after(morning);
+      morning.after(night);
+      let cursor = night;
+      if (misc) { cursor.after(misc); cursor = misc; }
+      if (note) { cursor.after(note); cursor = note; }
+      cursor.after(tasks);
+    } finally {
+      arranging = false;
+    }
+    return true;
+  }
+
   function arrange() {
     queued = false;
     if (arranging || !pageIsToday()) return;
@@ -56,8 +80,9 @@
     const note = sectionByTitle('daily note');
     const water = main.querySelector(':scope > .water-section');
 
-    if (!routine || (!scheduled && !anytime)) {
-      // Base renderer may still be building; try again on the next mutation.
+    if (!routine) return;
+    if (!scheduled && !anytime) {
+      normalizeExisting(main, routine, note, water);
       return;
     }
 
@@ -107,14 +132,12 @@
       taskCards.forEach(card => taskSection.appendChild(card));
       if (!taskCards.length) taskSection.insertAdjacentHTML('beforeend', '<div class="list-empty">Tidak ada task yang harus dikerjakan hari ini.</div>');
 
-      // Keep the daily flow deterministic. Hero/day-type stay where the base app renders them.
       routine.after(water || bodySection);
       if (water) water.after(bodySection);
       bodySection.after(morningSection);
       morningSection.after(nightSection);
       if (miscSection) nightSection.after(miscSection);
 
-      // Daily note sits above tasks so Today Tasks is always the final section.
       const beforeTasks = miscSection || nightSection;
       if (note) beforeTasks.after(note);
       (note || beforeTasks).after(taskSection);
