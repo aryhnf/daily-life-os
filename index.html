@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#0d1117" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Daily OS" />
+  <title>Daily OS</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icons/icon-180.png" />
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div>
+        <p id="eyebrow" class="eyebrow">DAILY OS</p>
+        <h1 id="pageTitle">Today</h1>
+      </div>
+      <button id="quickAddBtn" class="icon-btn" aria-label="Quick add">＋</button>
+    </header>
+
+    <main id="main" class="main"></main>
+
+    <nav class="bottom-nav" aria-label="Primary navigation">
+      <button data-route="today" class="nav-item active"><span>◉</span><small>Today</small></button>
+      <button data-route="routine" class="nav-item"><span>↻</span><small>Routine</small></button>
+      <button data-route="body" class="nav-item"><span>◇</span><small>Body</small></button>
+      <button data-route="skincare" class="nav-item"><span>✦</span><small>Skincare</small></button>
+      <button data-route="plan" class="nav-item"><span>▦</span><small>Plan</small></button>
+      <button data-route="consistency" class="nav-item"><span>▥</span><small>Tracker</small></button>
+      <button data-route="settings" class="nav-item"><span>⚙</span><small>Settings</small></button>
+    </nav>
+  </div>
+
+  <div id="modalRoot"></div>
+  <div id="toastRoot" class="toast-root" aria-live="polite"></div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
