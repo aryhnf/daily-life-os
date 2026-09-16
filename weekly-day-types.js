@@ -2,13 +2,13 @@
   const STORAGE_KEY = 'daily-os-weekly-day-types';
   const STYLE_ID = 'daily-os-weekly-day-types-style';
   const DAYS = [
-    { dow: 1, name: 'Senin', short: 'Sen' },
-    { dow: 2, name: 'Selasa', short: 'Sel' },
-    { dow: 3, name: 'Rabu', short: 'Rab' },
-    { dow: 4, name: 'Kamis', short: 'Kam' },
-    { dow: 5, name: 'Jumat', short: 'Jum' },
-    { dow: 6, name: 'Sabtu', short: 'Sab' },
-    { dow: 0, name: 'Minggu', short: 'Min' }
+    { dow: 1, name: 'Senin' },
+    { dow: 2, name: 'Selasa' },
+    { dow: 3, name: 'Rabu' },
+    { dow: 4, name: 'Kamis' },
+    { dow: 5, name: 'Jumat' },
+    { dow: 6, name: 'Sabtu' },
+    { dow: 0, name: 'Minggu' }
   ];
   const TYPES = [
     ['work', 'Work'],
@@ -137,12 +137,15 @@
     const base = baseSelect.closest('.flex') || baseSelect.parentElement;
     if (base) base.classList.add('weekly-day-base');
 
-    let ui = card.querySelector('.weekly-day-ui');
-    if (!ui) {
-      ui = document.createElement('div');
-      ui.className = 'weekly-day-ui';
-      card.appendChild(ui);
+    const existing = card.querySelector('.weekly-day-ui');
+    if (existing) {
+      syncTodayToBase(card, readTypes());
+      return;
     }
+
+    const ui = document.createElement('div');
+    ui.className = 'weekly-day-ui';
+    card.appendChild(ui);
     render(card);
   }
 
