@@ -3,7 +3,8 @@
     ['daily-os-routine-template-order', 'daily-os-routine-order:template-default'],
     ['daily-os-body-template-order', 'daily-os-routine-order:body-template'],
     ['daily-os-skincare-order-am', 'daily-os-routine-order:skincare-am'],
-    ['daily-os-skincare-order-pm', 'daily-os-routine-order:skincare-pm']
+    ['daily-os-skincare-order-pm', 'daily-os-routine-order:skincare-pm'],
+    ['daily-os-weekly-day-types', 'daily-os-routine-order:weekly-day-types']
   ]);
   const reverse = new Map([...pairs].map(([a,b]) => [b,a]));
   const nativeSet = Storage.prototype.setItem;
@@ -27,7 +28,7 @@
     }
   };
 
-  // Reconcile pre-v10 keys with aliases that are already included by backup/reset.
+  // Reconcile module keys with aliases that are already included by backup/reset.
   try {
     for (const [primary, alias] of pairs) {
       const p = localStorage.getItem(primary);
