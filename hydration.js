@@ -39,7 +39,12 @@
   }
 
   function toast(msg){const root=document.querySelector('#toastRoot');if(!root)return;root.innerHTML=`<div class="toast">${msg}</div>`;setTimeout(()=>{if(root.textContent.includes(msg))root.innerHTML='';},2000);}
-  function anchor(){const main=document.querySelector('#main');if(!main)return null;const routine=[...main.children].find(el=>el.querySelector?.('.section-title')?.textContent.trim().toLowerCase()==='daily routine');if(routine)return routine;const card=main.querySelector(':scope > .card');return card?.nextElementSibling||null;}
+  function anchor(){
+    const main=document.querySelector('#main');if(!main)return null;
+    const hero=[...main.children].find(el=>el.matches?.('.hero'));
+    if(hero)return hero.nextElementSibling;
+    return main.firstElementChild;
+  }
   function build(){const section=document.createElement('section');section.className='section water-section';section.innerHTML=`
     <div class="section-head"><div><h2 class="section-title">Air Minum</h2><p class="section-sub">250 ml per tap · target default 2 L</p></div></div>
     <article class="card water-card">
@@ -58,7 +63,7 @@
     if(done&&!doneBefore){card.classList.remove('water-celebrate');void card.offsetWidth;card.classList.add('water-celebrate');toast('Target air hari ini tercapai.');}
   }
   function bind(section){const add=section.querySelector('[data-water-add]');add.addEventListener('click',()=>{const before=readAmount();writeAmount(before+STEP);burst(add);render(section,before);});section.querySelector('[data-water-sub]').addEventListener('click',()=>{const before=readAmount();writeAmount(Math.max(0,before-STEP));render(section,before);});}
-  function enhance(){queued=false;injectStyles();const main=document.querySelector('#main');if(!main||document.querySelector('#pageTitle')?.textContent.trim().toLowerCase()!=='today'||main.querySelector('.water-section'))return;const a=anchor();if(!a)return;const section=build();main.insertBefore(section,a);bind(section);render(section);}
+  function enhance(){queued=false;injectStyles();const main=document.querySelector('#main');if(!main||document.querySelector('#pageTitle')?.textContent.trim().toLowerCase()!=='today'||main.querySelector('.water-section'))return;const section=build(),a=anchor();if(a)main.insertBefore(section,a);else main.appendChild(section);bind(section);render(section);}
   function queue(){if(queued)return;queued=true;requestAnimationFrame(enhance);}
   const observer=new MutationObserver(queue);function start(){injectStyles();const main=document.querySelector('#main');if(main)observer.observe(main,{childList:true,subtree:true});queue();}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
