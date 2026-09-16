@@ -1,13 +1,16 @@
-const CACHE = 'daily-os-v8';
+const CACHE = 'daily-os-v9';
 const ASSETS = [
   './',
   './index.html',
-  './styles.css?v=8',
-  './app.js?v=8',
-  './routine-template-order.js?v=8',
-  './routine-drag.js?v=8',
-  './hydration.js?v=8',
-  './polish.js?v=8',
+  './styles.css?v=9',
+  './bright-theme.css?v=9',
+  './app.js?v=9',
+  './routine-template-order.js?v=9',
+  './routine-drag.js?v=9',
+  './hydration.js?v=9',
+  './today-layout.js?v=9',
+  './body-skincare-order.js?v=9',
+  './polish.js?v=9',
   './db.js',
   './manifest.json',
   './icons/icon.svg',
