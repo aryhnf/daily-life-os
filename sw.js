@@ -1,12 +1,13 @@
-const CACHE = 'daily-os-v7';
+const CACHE = 'daily-os-v8';
 const ASSETS = [
   './',
   './index.html',
-  './styles.css?v=7',
-  './app.js?v=7',
-  './routine-drag.js?v=7',
-  './hydration.js?v=7',
-  './polish.js?v=7',
+  './styles.css?v=8',
+  './app.js?v=8',
+  './routine-template-order.js?v=8',
+  './routine-drag.js?v=8',
+  './hydration.js?v=8',
+  './polish.js?v=8',
   './db.js',
   './manifest.json',
   './icons/icon.svg',
