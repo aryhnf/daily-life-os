@@ -70,8 +70,9 @@
       cursor = node;
     };
 
-    // Air Minum adalah modul pertama setelah header/hero.
+    // Air Minum paling atas, Today Tasks langsung di bawahnya.
     place(water);
+    place(tasks);
     place(dayType);
     place(routine);
     place(body);
@@ -79,7 +80,6 @@
     place(night);
     place(misc);
     place(note);
-    place(tasks); // selalu paling bawah
   }
 
   function buildFromBase(main, scheduled, anytime) {
