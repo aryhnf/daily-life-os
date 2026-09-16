@@ -79,10 +79,11 @@ function generatedItems(dateKey = todayKey()) {
   const ov = state.overrides[dateKey] || {times:{},quickItems:[],dayType:'auto'};
   const items = [];
 
-  for (const r of state.routines.filter(x => isScheduledOn(x,date))) {
+  state.routines.filter(x => isScheduledOn(x,date)).forEach((r, order) => {
     const id = `routine:${r.id}`;
-    items.push({id, source:'routine', sourceId:r.id, title:r.name, subtitle:r.notes || (r.minimum ? `Minimum: ${r.minimum}` : ''), time:ov.times?.[id] ?? scheduleTime(r,date), tracked:r.tracked !== false, category:r.category || 'routine'});
-  }
+    // Daily Routine sengaja tidak memakai jam. Waktu lama dari versi sebelumnya diabaikan.
+    items.push({id, source:'routine', sourceId:r.id, title:r.name, subtitle:r.notes || (r.minimum ? `Minimum: ${r.minimum}` : ''), time:null, tracked:r.tracked !== false, category:r.category || 'routine', order});
+  });
   for (const b of state.body.filter(x => isScheduledOn(x,date))) {
     const id = `body:${b.id}`;
     const target = b.targetValue ? `${b.targetValue}${b.targetUnit ? ' '+b.targetUnit : ''}` : '';
@@ -106,6 +107,7 @@ function generatedItems(dateKey = todayKey()) {
   }
 
   return items.sort((a,b) => {
+    if (a.source === 'routine' && b.source === 'routine') return (a.order ?? 0) - (b.order ?? 0);
     const am = timeToMinutes(a.time), bm = timeToMinutes(b.time);
     if (am == null && bm == null) return a.title.localeCompare(b.title);
     if (am == null) return 1;
@@ -157,20 +159,23 @@ function renderApp() {
 
 function renderToday() {
   const key = todayKey(), date = new Date(), items = generatedItems(key), c = completionForDate(key), log = getLog(key), ov = getOverride(key);
-  const timed = items.filter(i => i.time), anytime = items.filter(i => !i.time);
+  const routineItems = items.filter(i => i.source === 'routine');
+  const timed = items.filter(i => i.source !== 'routine' && i.time);
+  const anytime = items.filter(i => i.source !== 'routine' && !i.time);
   const dayTypeAuto = [0,6].includes(date.getDay()) ? 'weekend' : 'work';
   const dayType = ov.dayType === 'auto' ? dayTypeAuto : ov.dayType;
   const card = item => {
     const st = itemStatus(key,item.id);
+    const hasTime = item.source !== 'routine' && !!item.time;
     return `<article class="card today-item ${st}" data-today-id="${item.id}" data-time="${item.time || ''}">
       <div class="card-row">
         <button class="check-btn" data-action="toggle" data-id="${item.id}" aria-label="Toggle">${st==='done'?'✓':st==='skipped'?'–':''}</button>
-        <div class="item-time" data-action="time" data-id="${item.id}">${item.time || 'Any'}</div>
+        ${hasTime ? `<div class="item-time" data-action="time" data-id="${item.id}">${item.time}</div>` : ''}
         <div class="card-main" data-action="detail" data-id="${item.id}">
           <p class="card-title">${item.overdue?'<span style="color:var(--danger)">!</span> ':''}${esc(item.title)}</p>
           ${item.subtitle?`<p class="card-meta">${esc(item.subtitle)}</p>`:''}
         </div>
-        ${item.time?`<div class="drag-handle" data-drag-time="${item.id}">⋮⋮</div>`:''}
+        ${hasTime?`<div class="drag-handle" data-drag-time="${item.id}">⋮⋮</div>`:''}
       </div>
       <div class="item-actions">
         ${st!=='skipped'?`<button class="action-btn warning" data-action="skip" data-id="${item.id}">Skip today</button>`:`<button class="action-btn" data-action="undo" data-id="${item.id}">Undo skip</button>`}
@@ -182,8 +187,11 @@ function renderToday() {
     <section class="card"><div class="flex between center gap"><div><div class="section-title">Day type</div><p class="card-meta">Override hanya berlaku hari ini</p></div>
       <select id="dayType" class="select" style="width:auto"><option value="auto" ${ov.dayType==='auto'?'selected':''}>Auto (${dayType})</option><option value="work" ${ov.dayType==='work'?'selected':''}>Work day</option><option value="weekend" ${ov.dayType==='weekend'?'selected':''}>Weekend</option><option value="holiday" ${ov.dayType==='holiday'?'selected':''}>Holiday</option><option value="travel" ${ov.dayType==='travel'?'selected':''}>Travel</option><option value="sick" ${ov.dayType==='sick'?'selected':''}>Sick day</option></select>
     </div></section>
-    <section class="section"><div class="section-head"><div><h2 class="section-title">Timeline</h2><p class="section-sub">Drag handle untuk geser waktu · swipe kiri untuk skip</p></div></div>
-      ${timed.length ? timed.map(card).join('') : '<div class="list-empty">Belum ada aktivitas terjadwal hari ini.</div>'}
+    <section class="section"><div class="section-head"><div><h2 class="section-title">Daily Routine</h2><p class="section-sub">Tanpa jam. Cukup checklist; swipe kiri untuk skip hari ini.</p></div></div>
+      ${routineItems.length ? routineItems.map(card).join('') : '<div class="list-empty">Belum ada daily routine untuk hari ini.</div>'}
+    </section>
+    <section class="section"><div class="section-head"><div><h2 class="section-title">Scheduled</h2><p class="section-sub">Jam hanya dipakai untuk Body, Skincare, Plan, atau quick item jika diperlukan.</p></div></div>
+      ${timed.length ? timed.map(card).join('') : '<div class="list-empty">Tidak ada aktivitas berjam hari ini.</div>'}
     </section>
     <section class="section"><div class="section-head"><h2 class="section-title">Anytime</h2></div>${anytime.length?anytime.map(card).join(''):'<div class="list-empty">Tidak ada item anytime.</div>'}</section>
     <section class="section"><div class="section-head"><h2 class="section-title">Daily note</h2></div><div class="card form">
@@ -195,7 +203,7 @@ function renderToday() {
 function greeting() { const h = new Date().getHours(); return h<11?'Good morning.':h<17?'Good afternoon.':'Good evening.'; }
 
 function renderRoutine() {
-  return `<section class="section"><div class="section-head"><div><h2 class="section-title">Routine templates</h2><p class="section-sub">Template permanen. Perubahan dari Today hanya berlaku hari itu.</p></div><button class="primary-btn small-btn" data-add-routine>+ Add</button></div>
+  return `<section class="section"><div class="section-head"><div><h2 class="section-title">Routine templates</h2><p class="section-sub">Pilih aktivitas dan hari aktif. Daily Routine tidak memakai jam.</p></div><button class="primary-btn small-btn" data-add-routine>+ Add</button></div>
     ${state.routines.filter(r=>r.active!==false).map(r=>templateCard(r,'routine')).join('') || '<div class="list-empty">Belum ada routine.</div>'}
   </section>
   ${state.routines.some(r=>r.active===false)?`<section class="section"><h2 class="section-title">Archived</h2>${state.routines.filter(r=>r.active===false).map(r=>templateCard(r,'routine')).join('')}</section>`:''}`;
@@ -216,16 +224,11 @@ function renderSkincare() {
 function templateCard(x,type) {
   const days = (x.days||allDays()).map(d=>DAYS[d]).join(' ');
   let meta = days;
-  if (type==='routine') meta = `${scheduleSummary(x)} · ${days}${x.minimum?` · min ${x.minimum}`:''}`;
+  if (type==='routine') meta = `${days}${x.minimum?` · min ${x.minimum}`:''}`;
   if (type==='body') meta = `${x.time||'Anytime'} · ${days}${x.targetValue?` · ${x.targetValue} ${x.targetUnit||''}`:''}`;
   if (type==='skincare') meta = `${(x.periods||[]).map(p=>p==='am'?'Morning':'Night').join(' + ')} · ${days}`;
   return `<article class="card"><div class="card-row"><div class="card-main"><p class="card-title">${esc(x.name||x.type)}</p><p class="card-meta">${esc(meta)}</p>${x.notes?`<p class="card-note">${esc(x.notes)}</p>`:''}</div><span class="pill ${x.tracked===false?'':'accent'}">${x.tracked===false?'not tracked':'tracked'}</span></div><div class="item-actions"><button class="action-btn" data-edit-template="${type}:${x.id}">Edit</button><button class="action-btn" data-archive-template="${type}:${x.id}">${x.active===false?'Restore':'Archive'}</button></div></article>`;
 }
-function scheduleSummary(r) {
-  if (r.timesByDay && Object.keys(r.timesByDay).length) return 'Custom time';
-  return r.time || 'Anytime';
-}
-
 function renderPlan() {
   const key=todayKey();
   const lanes = [
@@ -301,6 +304,7 @@ function bindToday() {
 async function skipToday(id) { getLog(todayKey()).items[id]={...(getLog(todayKey()).items[id]||{}),status:'skipped'}; await persist(); toast('Skipped today. Template tidak berubah.'); }
 function changeTodayTime(id) {
   const item=generatedItems().find(x=>x.id===id); if(!item)return;
+  if (item.source === 'routine') { toast('Daily Routine tidak memakai jam.'); return; }
   const t=prompt('Waktu untuk hari ini (HH:MM). Kosongkan untuk Anytime:',item.time||''); if(t===null)return;
   const v=t.trim(); if(v && !/^([01]\d|2[0-3]):[0-5]\d$/.test(v)){toast('Format waktu harus HH:MM.');return;}
   getOverride(todayKey()).times[id]=v||null; persist().then(()=>toast('Waktu berubah hanya untuk hari ini.'));
@@ -326,11 +330,10 @@ function installTodayGestures() {
 }
 
 function openRoutineModal(existing=null) {
-  const r=existing||{id:uid(),name:'',category:'morning',time:'07:00',days:allDays(),tracked:true,minimum:'',notes:'',active:true,timesByDay:{}};
-  modal(existing?'Edit routine':'Add routine',`<div class="form"><div class="field"><label>Name</label><input id="rName" class="input" value="${esc(r.name)}" placeholder="Contoh: Bangun Tidur"></div><div class="inline-fields"><div class="field"><label>Default time</label><input id="rTime" type="time" class="input" value="${esc(r.time||'')}"></div><div class="field"><label>Category</label><select id="rCat" class="select"><option value="morning" ${r.category==='morning'?'selected':''}>Morning</option><option value="day" ${r.category==='day'?'selected':''}>Day</option><option value="evening" ${r.category==='evening'?'selected':''}>Evening</option><option value="anytime" ${r.category==='anytime'?'selected':''}>Anytime</option></select></div></div>${daysEditor(r.days)}<div class="field"><label>Custom time per day (optional)</label><div class="grid-2">${allDays().map(d=>`<label class="field"><span class="muted">${DAYS[d]}</span><input type="time" class="input day-time" data-day="${d}" value="${esc(r.timesByDay?.[d]||'')}"></label>`).join('')}</div></div><div class="inline-fields"><div class="field"><label>Minimum version</label><input id="rMin" class="input" value="${esc(r.minimum||'')}" placeholder="contoh 5 menit"></div><div class="field"><label>Track consistency</label><select id="rTrack" class="select"><option value="yes" ${r.tracked!==false?'selected':''}>Yes</option><option value="no" ${r.tracked===false?'selected':''}>No</option></select></div></div><div class="field"><label>Notes</label><textarea id="rNotes" class="textarea">${esc(r.notes||'')}</textarea></div></div>`,`<button class="primary-btn" id="saveRoutine">Save</button>`);
-  bindDayEditor(r.days); $('#saveRoutine').onclick=async()=>{r.name=$('#rName').value.trim();if(!r.name)return toast('Nama wajib diisi.');r.time=$('#rTime').value||null;r.category=$('#rCat').value;r.days=selectedDays();r.minimum=$('#rMin').value.trim();r.tracked=$('#rTrack').value==='yes';r.notes=$('#rNotes').value.trim();r.timesByDay={};$$('.day-time').forEach(i=>{if(i.value)r.timesByDay[i.dataset.day]=i.value;});if(!existing)state.routines.push(r);closeModal();await persist();};
+  const r=existing||{id:uid(),name:'',category:'morning',days:allDays(),tracked:true,minimum:'',notes:'',active:true};
+  modal(existing?'Edit routine':'Add routine',`<div class="form"><div class="field"><label>Name</label><input id="rName" class="input" value="${esc(r.name)}" placeholder="Contoh: Bangun Tidur"></div><div class="field"><label>Category</label><select id="rCat" class="select"><option value="morning" ${r.category==='morning'?'selected':''}>Morning</option><option value="day" ${r.category==='day'?'selected':''}>Day</option><option value="evening" ${r.category==='evening'?'selected':''}>Evening</option><option value="anytime" ${r.category==='anytime'?'selected':''}>Anytime</option></select></div>${daysEditor(r.days)}<div class="inline-fields"><div class="field"><label>Minimum version</label><input id="rMin" class="input" value="${esc(r.minimum||'')}" placeholder="contoh 5 menit"></div><div class="field"><label>Track consistency</label><select id="rTrack" class="select"><option value="yes" ${r.tracked!==false?'selected':''}>Yes</option><option value="no" ${r.tracked===false?'selected':''}>No</option></select></div></div><div class="field"><label>Notes</label><textarea id="rNotes" class="textarea">${esc(r.notes||'')}</textarea></div><p class="card-meta">Daily Routine tidak memakai jam. Cukup tentukan hari aktif.</p></div>`,`<button class="primary-btn" id="saveRoutine">Save</button>`);
+  bindDayEditor(r.days); $('#saveRoutine').onclick=async()=>{r.name=$('#rName').value.trim();if(!r.name)return toast('Nama wajib diisi.');r.category=$('#rCat').value;r.days=selectedDays();r.minimum=$('#rMin').value.trim();r.tracked=$('#rTrack').value==='yes';r.notes=$('#rNotes').value.trim();r.time=null;r.timesByDay={};if(!existing)state.routines.push(r);closeModal();await persist();};
 }
-
 function openBodyModal(existing=null) {
   const b=existing||{id:uid(),type:'Gym',name:'Gym',days:[1,3,5],time:'17:00',targetValue:'',targetUnit:'',minimum:'',tracked:true,notes:'',active:true};
   modal(existing?'Edit body activity':'Add body activity',`<div class="form"><div class="inline-fields"><div class="field"><label>Activity</label><select id="bType" class="select">${BODY_TYPES.map(x=>`<option ${b.type===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="field"><label>Display name</label><input id="bName" class="input" value="${esc(b.name||b.type)}"></div></div>${daysEditor(b.days)}<div class="inline-fields"><div class="field"><label>Time</label><input id="bTime" type="time" class="input" value="${esc(b.time||'')}"></div><div class="field"><label>Unit</label><input id="bUnit" class="input" value="${esc(b.targetUnit||'')}" placeholder="km / min / session"></div></div><div class="inline-fields"><div class="field"><label>Default target</label><input id="bTarget" class="input" value="${esc(b.targetValue||'')}" placeholder="5"></div><div class="field"><label>Minimum version</label><input id="bMin" class="input" value="${esc(b.minimum||'')}" placeholder="1 km"></div></div><div class="field"><label>Track consistency</label><select id="bTrack" class="select"><option value="yes" ${b.tracked!==false?'selected':''}>Yes</option><option value="no" ${b.tracked===false?'selected':''}>No</option></select></div><div class="field"><label>Notes</label><textarea id="bNotes" class="textarea">${esc(b.notes||'')}</textarea></div></div>`,`<button class="primary-btn" id="saveBody">Save</button>`);
@@ -372,16 +375,13 @@ function openOnboarding() {
   renderOnboardingStep1();
 }
 function renderOnboardingStep1(){
-  modal('Build your routine',`<div class="onboard"><p>Pilih aktivitas yang memang kamu lakukan. Setelah ini atur jamnya. Semuanya bisa diedit lagi dari halaman Routine.</p><div class="preset-grid">${ROUTINE_PRESETS.map(([name,emoji,cat,time])=>`<div class="preset ${onboardingDraft.has(name)?'active':''}" data-onboard-preset="${esc(name)}"><span class="emoji">${emoji}</span><strong>${esc(name)}</strong><small>${cat} · ${time}</small></div>`).join('')}</div></div>`,`<button class="ghost-btn" id="skipOnboard">Skip</button><button class="primary-btn" id="nextOnboard">Continue</button>`);
+  modal('Build your routine',`<div class="onboard"><p>Pilih aktivitas yang ingin masuk Daily Routine. Tidak perlu atur jam; nanti cukup checklist sesuai hari aktif.</p><div class="preset-grid">${ROUTINE_PRESETS.map(([name,emoji,cat])=>`<div class="preset ${onboardingDraft.has(name)?'active':''}" data-onboard-preset="${esc(name)}"><span class="emoji">${emoji}</span><strong>${esc(name)}</strong><small>${cat}</small></div>`).join('')}</div></div>`,`<button class="ghost-btn" id="skipOnboard">Skip</button><button class="primary-btn" id="finishOnboard">Finish</button>`);
   $$('[data-onboard-preset]').forEach(c=>c.onclick=()=>{const n=c.dataset.onboardPreset;onboardingDraft.has(n)?onboardingDraft.delete(n):onboardingDraft.add(n);c.classList.toggle('active');});
   $('#skipOnboard').onclick=async()=>{state.onboarded=true;closeModal();await persist();};
-  $('#nextOnboard').onclick=renderOnboardingStep2;
-}
-function renderOnboardingStep2(){
-  const selected=ROUTINE_PRESETS.filter(([n])=>onboardingDraft.has(n));
-  modal('Atur waktu',`<div class="onboard"><p>Jam di sini menjadi default. Nanti bisa dibuat berbeda per hari, misalnya Senin 05:00 tetapi Rabu 07:00.</p><div class="form">${selected.map(([n,,cat,time],i)=>`<div class="card"><div class="card-row"><div class="card-main"><p class="card-title">${esc(n)}</p><p class="card-meta">${cat}</p></div><input class="input onboard-time" style="width:120px" type="time" data-name="${esc(n)}" value="${time}"></div></div>`).join('')}</div></div>`,`<button class="ghost-btn" id="backOnboard">Back</button><button class="primary-btn" id="finishOnboard">Finish</button>`);
-  $('#backOnboard').onclick=renderOnboardingStep1;
-  $('#finishOnboard').onclick=async()=>{state.routines=[];$$('.onboard-time').forEach(inp=>{const preset=ROUTINE_PRESETS.find(([n])=>n===inp.dataset.name);state.routines.push({id:uid(),name:preset[0],category:preset[2],time:inp.value||preset[3],days:allDays(),timesByDay:{},tracked:true,minimum:'',notes:'',active:true});});state.onboarded=true;closeModal();await persist();toast('Routine siap. Tambahkan Body dan Skincare kapan saja.');};
+  $('#finishOnboard').onclick=async()=>{
+    state.routines=ROUTINE_PRESETS.filter(([n])=>onboardingDraft.has(n)).map(([name,,category])=>({id:uid(),name,category,time:null,days:allDays(),timesByDay:{},tracked:true,minimum:'',notes:'',active:true}));
+    state.onboarded=true;closeModal();await persist();toast('Routine siap. Tanpa jam, tinggal checklist.');
+  };
 }
 
 function dayTypeLabel(v){return ({work:'Work day',weekend:'Weekend',holiday:'Holiday',travel:'Travel',sick:'Sick day'})[v]||v;}
